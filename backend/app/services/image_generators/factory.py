@@ -16,5 +16,15 @@ def get_image_generator(provider_name: str) -> ImageGenerator:
         case "stability" | "stable-diffusion" | "sd":
             return StabilityImageGenerator()
         case _:
-            # Fallback to mock generator for unknown providers
             return MockImageGenerator()
+
+
+def resolve_generator_for_condition(provider_name: str, system_name: str) -> ImageGenerator:
+    """Resolves appropriate generator, routing automatically if provider is 'auto' or 'live'."""
+    normalized_provider = provider_name.strip().lower()
+    if normalized_provider in ("auto", "live"):
+        if "chatgpt" in system_name.lower() or "dall" in system_name.lower():
+            return DalleImageGenerator()
+        return StabilityImageGenerator()
+
+    return get_image_generator(provider_name)

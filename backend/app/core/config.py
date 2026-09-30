@@ -23,10 +23,21 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_GENERATIONS: int = 3
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[
+            str(Path(__file__).resolve().parent.parent.parent / ".env"),
+            ".env",
+        ],
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @property
+    def has_openai(self) -> bool:
+        return bool(self.OPENAI_API_KEY and self.OPENAI_API_KEY.strip())
+
+    @property
+    def has_stability(self) -> bool:
+        return bool(self.STABILITY_API_KEY and self.STABILITY_API_KEY.strip())
 
 
 settings = Settings()

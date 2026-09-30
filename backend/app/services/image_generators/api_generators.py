@@ -8,7 +8,7 @@ from app.core.config import settings
 
 
 class DalleImageGenerator:
-    """OpenAI DALL-E 3 image generator adapter."""
+    """OpenAI image generator adapter supporting DALL-E 3 and newer GPT Image models."""
 
     def __init__(self, api_key: str | None = None) -> None:
         resolved_key = api_key or settings.OPENAI_API_KEY
@@ -22,28 +22,41 @@ class DalleImageGenerator:
         seed: int | None = None,
         extra_params: dict[str, Any] | None = None,
     ) -> tuple[bytes, dict[str, Any]]:
-        response = await self.client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            n=1,
-            size="1024x1024",
-            quality="standard",
-            response_format="b64_json",
-        )
-        first_image = response.data[0]
-        b64_data = first_image.b64_json
-        if not b64_data:
-            raise RuntimeError("DALL-E response did not contain b64_json image data.")
+        # Candidate model names to support both standard DALL-E and project-scoped OpenAI keys
+        models_to_try = ["chatgpt-image-latest", "gpt-image-1", "dall-e-3"]
+        last_error: Exception | None = None
 
-        image_bytes = base64.b64decode(b64_data)
-        metadata = {
-            "generator": "DalleImageGenerator",
-            "model": "dall-e-3",
-            "revised_prompt": first_image.revised_prompt,
-            "dimensions": "1024x1024",
-            "seed": seed,
-        }
-        return image_bytes, metadata
+        for model_name in models_to_try:
+            try:
+                response = await self.client.images.generate(
+                    model=model_name,
+                    prompt=prompt,
+                    n=1,
+                )
+                first_image = response.data[0]
+                if first_image.b64_json:
+                    image_bytes = base64.b64decode(first_image.b64_json)
+                elif first_image.url:
+                    async with httpx.AsyncClient(timeout=45.0) as http_client:
+                        resp = await http_client.get(first_image.url)
+                        resp.raise_for_status()
+                        image_bytes = resp.content
+                else:
+                    continue
+
+                metadata = {
+                    "generator": "DalleImageGenerator",
+                    "model": model_name,
+                    "revised_prompt": getattr(first_image, "revised_prompt", None),
+                    "dimensions": "1024x1024",
+                    "seed": seed,
+                }
+                return image_bytes, metadata
+            except Exception as exc:
+                last_error = exc
+                continue
+
+        raise RuntimeError(f"All OpenAI image models failed. Last error: {last_error}")
 
 
 class StabilityImageGenerator:

@@ -25,8 +25,14 @@ export const AuditStudio: React.FC<AuditStudioProps> = ({ onJobCreated }) => {
   const [selectedOccupations, setSelectedOccupations] = useState<string[]>(factors.occupations);
   const [selectedRegions, setSelectedRegions] = useState<string[]>(factors.regions);
 
+  const [providersStatus, setProvidersStatus] = useState<{
+    mock: boolean;
+    stability: boolean;
+    dalle: boolean;
+  }>({ mock: true, stability: false, dalle: false });
+
   const [jobName, setJobName] = useState('Auditoria Piloto - Representações Visuais 2026');
-  const [provider, setProvider] = useState('mock');
+  const [provider, setProvider] = useState('stability');
   const [repetitions, setRepetitions] = useState(1);
   const [translateToEn, setTranslateToEn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,6 +49,12 @@ export const AuditStudio: React.FC<AuditStudioProps> = ({ onJobCreated }) => {
         setSelectedIdentities(data.factors.identities);
         setSelectedOccupations(data.factors.occupations);
         setSelectedRegions(data.factors.regions);
+        if (data.default_provider) {
+          setProvider(data.default_provider);
+        }
+        if (data.providers_status) {
+          setProvidersStatus(data.providers_status);
+        }
       })
       .catch((err) => console.error(err));
   }, []);
@@ -269,17 +281,46 @@ export const AuditStudio: React.FC<AuditStudioProps> = ({ onJobCreated }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-stone-700 uppercase mb-1">
-                Provedor de Execução
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-stone-700 uppercase">
+                  Provedor de Execução
+                </label>
+                <div className="flex gap-1">
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                      providersStatus.stability
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-stone-100 text-stone-500'
+                    }`}
+                  >
+                    Stability {providersStatus.stability ? '✓' : '✗'}
+                  </span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                      providersStatus.dalle
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-stone-100 text-stone-500'
+                    }`}
+                  >
+                    OpenAI {providersStatus.dalle ? '✓' : '✗'}
+                  </span>
+                </div>
+              </div>
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
                 className="w-full text-sm px-3 py-2 border border-stone-300 rounded-md focus:ring-2 focus:ring-rose-800 focus:border-rose-800 bg-white"
               >
+                <option value="auto">
+                  Multi-Modelo Real (DALL-E 3 para ChatGPT + SD para Stable Diffusion)
+                </option>
+                <option value="stability">
+                  Stability AI / Stable Diffusion (API Real {providersStatus.stability ? '• Ativa' : ''})
+                </option>
+                <option value="dall-e">
+                  OpenAI DALL-E 3 / GPT-Image (API Real {providersStatus.dalle ? '• Ativa' : ''})
+                </option>
                 <option value="mock">Simulador Mock (Gratuito / Offline / Testes)</option>
-                <option value="dall-e">OpenAI DALL-E 3 (API Real)</option>
-                <option value="stability">Stability AI / Stable Diffusion (API Real)</option>
               </select>
             </div>
 

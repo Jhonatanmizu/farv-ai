@@ -9,7 +9,9 @@ from app.core.config import settings
 from app.core.database import async_session_maker
 from app.domain.models.audit import AuditJob, GeneratedImage, QualitativeAudit, QuantitativeMetric
 from app.domain.schemas.audit import AuditJobCreate
-from app.services.image_generators.factory import get_image_generator
+from app.services.image_generators.factory import (
+    resolve_generator_for_condition,
+)
 from app.services.metrics.skin_sampler import SkinColorSampler
 from app.services.prompt_engine import PromptEngineService
 from app.services.qualitative.codebook_chain import CodebookAuditor
@@ -74,7 +76,6 @@ class AuditRunnerService:
         return job
 
     async def _process_job(self, job_id: str, provider_name: str) -> None:
-        generator = get_image_generator(provider_name)
         semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_GENERATIONS)
 
         job_dir = settings.IMAGES_DIR / job_id
@@ -93,6 +94,7 @@ class AuditRunnerService:
             async with semaphore:
                 start_time = time.monotonic()
                 try:
+                    generator = resolve_generator_for_condition(provider_name, img_record.system)
                     prompt_to_use = (
                         img_record.prompt_en if img_record.prompt_en else img_record.prompt_pt
                     )

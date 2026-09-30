@@ -10,6 +10,12 @@ export async function fetchFactors(): Promise<{
     regions: string[];
   };
   total_conditions: number;
+  default_provider: string;
+  providers_status: {
+    mock: boolean;
+    stability: boolean;
+    dalle: boolean;
+  };
 }> {
   const res = await fetch(`${API_BASE}/conditions`);
   if (!res.ok) throw new Error('Failed to fetch experimental factors');
@@ -90,19 +96,92 @@ export async function updateQualitativeAudit(
   return res.json();
 }
 
-export function createWebSocket(onMessage: (data: any) => void): WebSocket {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}${API_BASE}/ws/stream`;
-  const socket = new WebSocket(wsUrl);
+export function createWebSocket(
+  onMessage: (data: any) => void,
+  onStatusChange?: (connected: boolean) => void
+): { close: () => void } {
+  let ws: WebSocket | null = null;
+  let heartbeatTimer: any = null;
+  let reconnectTimer: any = null;
+  let isClosedManually = false;
 
-  socket.onmessage = (event) => {
+  const getWsUrls = (): string[] => {
+    const isHttps = window.location.protocol === 'https:';
+    const wsProto = isHttps ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const hostname = window.location.hostname;
+
+    // Try proxied URL first, then direct backend port 8000
+    const urls = [`${wsProto}//${host}${API_BASE}/ws/stream`];
+    if (window.location.port !== '8000') {
+      urls.push(`${wsProto}//${hostname}:8000${API_BASE}/ws/stream`);
+    }
+    return urls;
+  };
+
+  const wsUrls = getWsUrls();
+  let urlIndex = 0;
+
+  const connect = () => {
+    if (isClosedManually) return;
+
+    const currentUrl = wsUrls[urlIndex % wsUrls.length];
     try {
-      const data = JSON.parse(event.data);
-      onMessage(data);
-    } catch (e) {
-      console.error('Failed to parse WS payload', e);
+      ws = new WebSocket(currentUrl);
+
+      ws.onopen = () => {
+        onStatusChange?.(true);
+        // Start ping heartbeat every 5 seconds
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        heartbeatTimer = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('ping');
+          }
+        }, 5000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === 'pong') return;
+          if (data.event === 'connected') {
+            onStatusChange?.(true);
+          }
+          onMessage(data);
+        } catch {
+          // non-JSON message
+        }
+      };
+
+      ws.onerror = () => {
+        onStatusChange?.(false);
+      };
+
+      ws.onclose = () => {
+        onStatusChange?.(false);
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        if (!isClosedManually) {
+          urlIndex++;
+          reconnectTimer = setTimeout(connect, 2000);
+        }
+      };
+    } catch {
+      onStatusChange?.(false);
+      if (!isClosedManually) {
+        urlIndex++;
+        reconnectTimer = setTimeout(connect, 2000);
+      }
     }
   };
 
-  return socket;
+  connect();
+
+  return {
+    close: () => {
+      isClosedManually = true;
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    },
+  };
 }

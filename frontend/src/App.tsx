@@ -41,9 +41,8 @@ export const App: React.FC = () => {
 
   // Initialize WebSocket for real-time background task updates
   useEffect(() => {
-    let ws: WebSocket;
-    try {
-      ws = createWebSocket((data) => {
+    const wsClient = createWebSocket(
+      (data) => {
         if (data.event === 'image_completed' || data.event === 'image_failed') {
           if (currentJob && currentJob.id === data.job_id) {
             loadJobDetail(data.job_id);
@@ -54,17 +53,14 @@ export const App: React.FC = () => {
             loadJobDetail(data.job_id);
           }
         }
-      });
-
-      ws.onopen = () => setIsWsConnected(true);
-      ws.onclose = () => setIsWsConnected(false);
-      ws.onerror = () => setIsWsConnected(false);
-    } catch (e) {
-      console.error('WS init error', e);
-    }
+      },
+      (connected) => {
+        setIsWsConnected(connected);
+      }
+    );
 
     return () => {
-      if (ws) ws.close();
+      wsClient.close();
     };
   }, [currentJob?.id]);
 

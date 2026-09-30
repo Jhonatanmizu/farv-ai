@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.core.config import settings
 from app.domain.schemas.audit import (
     BrazilianRegion,
     GenerativeSystem,
@@ -16,7 +17,7 @@ prompt_engine = PromptEngineService()
 
 @router.get("")
 def list_experimental_factors() -> dict[str, object]:
-    """Returns all 4 experimental factors and matrix dimensions."""
+    """Returns all 4 experimental factors, matrix dimensions, and active provider status."""
     systems = [s.value for s in GenerativeSystem]
     identities = [i.value for i in IdentityFormulation]
     occupations = [o.value for o in Occupation]
@@ -32,6 +33,12 @@ def list_experimental_factors() -> dict[str, object]:
         },
         "formula": f"{len(systems)} x {len(identities)} x {len(occupations)} x {len(regions)}",
         "total_conditions": total_combinations,
+        "default_provider": settings.DEFAULT_PROVIDER,
+        "providers_status": {
+            "mock": True,
+            "stability": settings.has_stability,
+            "dalle": settings.has_openai,
+        },
     }
 
 
