@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # API Keys for generative providers
     OPENAI_API_KEY: str | None = None
     STABILITY_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
+    GOOGLE_API_KEY: str | None = None
 
     # Model settings
     DEFAULT_PROVIDER: str = "mock"
@@ -61,6 +63,11 @@ class Settings(BaseSettings):
     @property
     def has_stability(self) -> bool:
         return bool(self.STABILITY_API_KEY and self.STABILITY_API_KEY.strip())
+
+    @property
+    def has_gemini(self) -> bool:
+        key = self.GEMINI_API_KEY or self.GOOGLE_API_KEY
+        return bool(key and key.strip())
 
 
 settings = Settings()

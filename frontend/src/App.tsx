@@ -9,6 +9,7 @@ import { ExportModal } from './components/ExportModal';
 import { AuditJob, GeneratedImage, User } from './types';
 import {
   createWebSocket,
+  deleteAuditJob,
   fetchAuditJobs,
   fetchAuditJobDetail,
   fetchCurrentUser,
@@ -113,6 +114,17 @@ export const App: React.FC = () => {
     setIsExportModalOpen(true);
   };
 
+  const handleDeleteJob = async (job: AuditJob) => {
+    await deleteAuditJob(job.id);
+    const updatedJobs = jobs.filter((j) => j.id !== job.id);
+    setJobs(updatedJobs);
+    if (updatedJobs.length > 0) {
+      loadJobDetail(updatedJobs[0].id);
+    } else {
+      setCurrentJob(null);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-stone-50">
       <Header
@@ -135,6 +147,7 @@ export const App: React.FC = () => {
             onRefresh={() => currentJob && loadJobDetail(currentJob.id)}
             onInspectImage={(img) => setSelectedImage(img)}
             onExportJob={handleOpenJobExport}
+            onDeleteJob={handleDeleteJob}
           />
         )}
         {activeTab === 'metrics' && <MetricsDashboard jobId={currentJob?.id || null} />}

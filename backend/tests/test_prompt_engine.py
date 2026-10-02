@@ -8,10 +8,10 @@ from app.domain.schemas.audit import (
 from app.services.prompt_engine import PromptEngineService
 
 
-def test_matrix_dimensions_equals_180() -> None:
+def test_matrix_dimensions_equals_270() -> None:
     engine = PromptEngineService()
     conditions = engine.generate_all_conditions()
-    assert len(conditions) == 180
+    assert len(conditions) == 270
 
 
 def test_build_prompt_portuguese() -> None:

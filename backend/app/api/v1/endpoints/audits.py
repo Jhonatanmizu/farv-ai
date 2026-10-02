@@ -1,3 +1,4 @@
+import shutil
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user_optional
+from app.core.config import settings
 from app.core.database import get_db_session
 from app.domain.models.audit import AuditJob, GeneratedImage, QualitativeAudit
 from app.domain.models.user import User
@@ -156,10 +158,19 @@ async def delete_audit_job(
     job_id: str,
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
-    """Deletes audit job and associated records."""
-    job = await db.get(AuditJob, job_id)
+    """Deletes audit job, associated DB records, and stored image files on disk."""
+    stmt = select(AuditJob).where(AuditJob.id == job_id).options(selectinload(AuditJob.images))
+    result = await db.execute(stmt)
+    job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Audit job not found")
+
+    # Clean up physical image files and directory from disk
+    if settings.IMAGES_DIR:
+        job_dir = settings.IMAGES_DIR / job_id
+        if job_dir.exists():
+            shutil.rmtree(job_dir, ignore_errors=True)
+
     await db.delete(job)
     await db.commit()
 

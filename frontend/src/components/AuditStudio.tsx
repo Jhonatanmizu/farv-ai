@@ -14,7 +14,7 @@ export const AuditStudio: React.FC<AuditStudioProps> = ({ onJobCreated }) => {
     occupations: string[];
     regions: string[];
   }>({
-    systems: ['ChatGPT (DALL-E 3)', 'Stable Diffusion'],
+    systems: ['ChatGPT (DALL-E 3)', 'Stable Diffusion', 'Google Gemini (Imagen 3)'],
     identities: ['Sem raça explícita', 'Mulher preta', 'Mulher branca'],
     occupations: ['Juíza', 'Médica', 'Ambiente genérico', 'Empregada doméstica', 'Faxineira'],
     regions: ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul', 'Sem referência'],
@@ -29,7 +29,8 @@ export const AuditStudio: React.FC<AuditStudioProps> = ({ onJobCreated }) => {
     mock: boolean;
     stability: boolean;
     dalle: boolean;
-  }>({ mock: true, stability: false, dalle: false });
+    gemini: boolean;
+  }>({ mock: true, stability: false, dalle: false, gemini: false });
 
   const [jobName, setJobName] = useState('Auditoria Piloto - Representações Visuais 2026');
   const [provider, setProvider] = useState('stability');
@@ -288,6 +289,15 @@ export const AuditStudio: React.FC<AuditStudioProps> = ({ onJobCreated }) => {
                 <div className="flex gap-1">
                   <span
                     className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                      providersStatus.gemini
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-stone-100 text-stone-500'
+                    }`}
+                  >
+                    Gemini {providersStatus.gemini ? '✓' : '✗'}
+                  </span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
                       providersStatus.stability
                         ? 'bg-emerald-100 text-emerald-800'
                         : 'bg-stone-100 text-stone-500'
@@ -312,7 +322,10 @@ export const AuditStudio: React.FC<AuditStudioProps> = ({ onJobCreated }) => {
                 className="w-full text-sm px-3 py-2 border border-stone-300 rounded-md focus:ring-2 focus:ring-rose-800 focus:border-rose-800 bg-white"
               >
                 <option value="auto">
-                  Multi-Modelo Real (DALL-E 3 para ChatGPT + SD para Stable Diffusion)
+                  Multi-Modelo Real (DALL-E 3, SD e Gemini Imagen 3 automáticos)
+                </option>
+                <option value="gemini">
+                  Google Gemini / Imagen 3 (API Real {providersStatus.gemini ? '• Ativa' : ''})
                 </option>
                 <option value="stability">
                   Stability AI / Stable Diffusion (API Real {providersStatus.stability ? '• Ativa' : ''})

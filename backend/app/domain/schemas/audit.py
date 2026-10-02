@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class GenerativeSystem(StrEnum):
     CHATGPT_DALLE = "ChatGPT (DALL-E 3)"
     STABLE_DIFFUSION = "Stable Diffusion"
+    GOOGLE_GEMINI = "Google Gemini (Imagen 3)"
 
 
 class IdentityFormulation(StrEnum):

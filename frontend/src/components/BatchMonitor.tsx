@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AuditJob, GeneratedImage } from '../types';
 import { ImageCard } from './ImageCard';
-import { CheckCircle2, RefreshCw, Filter, Download } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Filter, Download, Trash2, AlertTriangle, X } from 'lucide-react';
 
 interface BatchMonitorProps {
   currentJob: AuditJob | null;
@@ -10,6 +10,7 @@ interface BatchMonitorProps {
   onRefresh: () => void;
   onInspectImage: (image: GeneratedImage) => void;
   onExportJob?: (job: AuditJob) => void;
+  onDeleteJob?: (job: AuditJob) => Promise<void>;
 }
 
 export const BatchMonitor: React.FC<BatchMonitorProps> = ({
@@ -19,10 +20,14 @@ export const BatchMonitor: React.FC<BatchMonitorProps> = ({
   onRefresh,
   onInspectImage,
   onExportJob,
+  onDeleteJob,
 }) => {
   const [filterIdentity, setFilterIdentity] = useState<string>('all');
   const [filterOccupation, setFilterOccupation] = useState<string>('all');
   const [filterRegion, setFilterRegion] = useState<string>('all');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const images = currentJob?.images || [];
 
@@ -36,6 +41,20 @@ export const BatchMonitor: React.FC<BatchMonitorProps> = ({
   const progressPercent = currentJob
     ? Math.round(((currentJob.completed_images + currentJob.failed_images) / (currentJob.total_images || 1)) * 100)
     : 0;
+
+  const handleConfirmDelete = async () => {
+    if (!currentJob || !onDeleteJob) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteJob(currentJob);
+      setIsDeleteModalOpen(false);
+    } catch (err: any) {
+      setDeleteError(err.message || 'Erro ao excluir auditoria.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -84,6 +103,20 @@ export const BatchMonitor: React.FC<BatchMonitorProps> = ({
             >
               <Download className="w-3.5 h-3.5 text-rose-400" />
               <span>Exportar Lote</span>
+            </button>
+          )}
+
+          {currentJob && onDeleteJob && (
+            <button
+              onClick={() => {
+                setDeleteError(null);
+                setIsDeleteModalOpen(true);
+              }}
+              className="flex items-center space-x-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-md text-xs font-semibold transition-colors shadow-sm"
+              title="Excluir auditoria e imagens do banco de dados"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>Excluir</span>
             </button>
           )}
 
@@ -176,6 +209,82 @@ export const BatchMonitor: React.FC<BatchMonitorProps> = ({
           <p className="text-stone-500 text-sm">
             Nenhuma imagem corresponde aos filtros ou o lote ainda está na fila de geração.
           </p>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && currentJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-xl shadow-2xl border border-stone-200 max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between p-4 border-b border-stone-100 bg-stone-50/70">
+              <div className="flex items-center space-x-2 text-rose-800">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+                <h3 className="font-bold text-stone-900">Excluir Auditoria</h3>
+              </div>
+              <button
+                onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
+                className="text-stone-400 hover:text-stone-600 p-1 rounded-md"
+                disabled={isDeleting}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-stone-700">
+                Você tem certeza que deseja excluir permanentemente o lote de auditoria{' '}
+                <strong className="text-stone-900 font-semibold">"{currentJob.name}"</strong>?
+              </p>
+
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-xs text-rose-800 space-y-1">
+                <p className="font-semibold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  Os seguintes dados serão removidos do banco e do disco:
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 text-rose-700 pl-1">
+                  <li>Registro da auditoria e parâmetros do experimento</li>
+                  <li>Todas as {currentJob.total_images || images.length} imagens geradas e arquivos de imagem salvos</li>
+                  <li>Métricas computacionais (ângulos ITA e escala Monk)</li>
+                  <li>Avaliações qualitativas e anotações dos pesquisadores</li>
+                </ul>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-xs rounded-lg">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-stone-50 border-t border-stone-100 flex items-center justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-200/60 rounded-md transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold rounded-md shadow-sm transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Excluir Definitivamente</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

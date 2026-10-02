@@ -104,6 +104,7 @@ export async function fetchFactors(): Promise<{
     mock: boolean;
     stability: boolean;
     dalle: boolean;
+    gemini: boolean;
   };
 }> {
   const res = await fetch(`${API_BASE}/conditions`);
@@ -166,6 +167,17 @@ export async function fetchAuditJobDetail(jobId: string): Promise<AuditJob> {
   });
   if (!res.ok) throw new Error('Failed to fetch audit job detail');
   return res.json();
+}
+
+export async function deleteAuditJob(jobId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/audits/${jobId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Falha ao excluir auditoria.');
+  }
 }
 
 export async function fetchMetricsSummary(jobId: string): Promise<MetricSummary> {

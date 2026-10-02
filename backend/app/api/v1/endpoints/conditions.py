@@ -38,6 +38,7 @@ def list_experimental_factors() -> dict[str, object]:
             "mock": True,
             "stability": settings.has_stability,
             "dalle": settings.has_openai,
+            "gemini": settings.has_gemini,
         },
     }
 

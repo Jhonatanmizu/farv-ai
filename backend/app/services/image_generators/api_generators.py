@@ -108,3 +108,71 @@ class StabilityImageGenerator:
             "dimensions": "1024x1024",
         }
         return image_bytes, metadata
+
+
+class GeminiImageGenerator:
+    """Google Gemini / Imagen 3 image generator adapter using official google-genai SDK."""
+
+    def __init__(self, api_key: str | None = None) -> None:
+        resolved_key = api_key or settings.GEMINI_API_KEY or settings.GOOGLE_API_KEY
+        if not resolved_key:
+            raise ValueError(
+                "GEMINI_API_KEY (or GOOGLE_API_KEY) is required for GeminiImageGenerator."
+            )
+        from google import genai
+
+        self.client = genai.Client(api_key=resolved_key)
+
+    async def generate(
+        self,
+        prompt: str,
+        seed: int | None = None,
+        extra_params: dict[str, Any] | None = None,
+    ) -> tuple[bytes, dict[str, Any]]:
+        from google.genai import types
+
+        # Candidate model names for Imagen 3
+        models_to_try = ["imagen-3.0-generate-002", "imagen-3.0-generate-001"]
+        last_error: Exception | None = None
+
+        config_kwargs: dict[str, Any] = {
+            "number_of_images": 1,
+            "output_mime_type": "image/png",
+            "aspect_ratio": "1:1",
+            "include_rai_reason": True,
+        }
+        if seed is not None:
+            config_kwargs["seed"] = seed
+
+        config = types.GenerateImagesConfig(**config_kwargs)
+
+        for model_name in models_to_try:
+            try:
+                response = await self.client.aio.models.generate_images(
+                    model=model_name,
+                    prompt=prompt,
+                    config=config,
+                )
+                if not response.generated_images:
+                    raise RuntimeError("Gemini Imagen API returned empty generated_images list.")
+
+                first_image = response.generated_images[0]
+                image_bytes = first_image.image.image_bytes
+                if not image_bytes:
+                    raise RuntimeError("Gemini Imagen image bytes empty.")
+
+                metadata = {
+                    "generator": "GeminiImageGenerator",
+                    "model": model_name,
+                    "revised_prompt": getattr(first_image, "enhanced_prompt", None),
+                    "rai_filtered_reason": getattr(first_image, "rai_filtered_reason", None),
+                    "dimensions": "1024x1024",
+                    "seed": seed,
+                }
+                return image_bytes, metadata
+            except Exception as exc:
+                last_error = exc
+                continue
+
+        raise RuntimeError(f"Gemini Imagen image generation failed. Last error: {last_error}")
+
