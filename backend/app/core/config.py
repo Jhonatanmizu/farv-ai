@@ -24,6 +24,15 @@ class Settings(BaseSettings):
     DEFAULT_PROVIDER: str = "mock"
     MAX_CONCURRENT_GENERATIONS: int = 3
 
+    # Authentication & Security
+    SECRET_KEY: str = "farv-ia-super-secret-key-change-in-production-2026"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin123"
+
+    # Public Fly.io URL override for exports (defaults to request host if not set)
+    PUBLIC_BASE_URL: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=[
             str(Path(__file__).resolve().parent.parent.parent / ".env"),

@@ -1,13 +1,35 @@
 import React from 'react';
-import { Layers, Activity, BarChart3, Wifi, WifiOff } from 'lucide-react';
+import {
+  Layers,
+  Activity,
+  BarChart3,
+  Wifi,
+  WifiOff,
+  Download,
+  LogOut,
+  LogIn,
+} from 'lucide-react';
+import { User } from '../types';
 
 interface HeaderProps {
   activeTab: 'studio' | 'monitor' | 'metrics';
   setActiveTab: (tab: 'studio' | 'monitor' | 'metrics') => void;
   isWsConnected: boolean;
+  currentUser: User | null;
+  onOpenAuthModal: () => void;
+  onLogout: () => void;
+  onOpenExportModal: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, isWsConnected }) => {
+export const Header: React.FC<HeaderProps> = ({
+  activeTab,
+  setActiveTab,
+  isWsConnected,
+  currentUser,
+  onOpenAuthModal,
+  onLogout,
+  onOpenExportModal,
+}) => {
   return (
     <header className="bg-stone-900 text-stone-100 border-b border-stone-800 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -67,9 +89,47 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, isWsCon
             </button>
           </nav>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
+            {/* Global Export Trigger */}
+            <button
+              onClick={onOpenExportModal}
+              title="Exportar CSV, SQLite e Imagens"
+              className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 rounded-lg text-xs font-medium transition-colors shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5 text-rose-400" />
+              <span>Exportar</span>
+            </button>
+
+            {/* Auth / User Section */}
+            {currentUser ? (
+              <div className="flex items-center space-x-2 bg-stone-950 px-2.5 py-1 rounded-lg border border-stone-800">
+                <div className="w-6 h-6 rounded-full bg-rose-900 flex items-center justify-center text-xs text-rose-200 font-bold">
+                  {currentUser.username[0]?.toUpperCase()}
+                </div>
+                <span className="text-xs text-stone-200 font-medium max-w-[100px] truncate" title={currentUser.username}>
+                  {currentUser.username}
+                </span>
+                <button
+                  onClick={onLogout}
+                  title="Sair da conta"
+                  className="text-stone-400 hover:text-rose-400 p-1 rounded transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAuthModal}
+                className="flex items-center space-x-1.5 px-3 py-1.5 bg-rose-700 hover:bg-rose-600 text-white rounded-lg text-xs font-medium transition-colors shadow"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Entrar</span>
+              </button>
+            )}
+
+            {/* WS Live status indicator */}
             <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
                 isWsConnected
                   ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
                   : 'bg-amber-950 text-amber-300 border-amber-800'
@@ -77,11 +137,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, isWsCon
             >
               {isWsConnected ? (
                 <>
-                  <Wifi className="w-3 h-3 mr-1 animate-pulse" /> Live WS
+                  <Wifi className="w-3 h-3 mr-1 animate-pulse" /> Live
                 </>
               ) : (
                 <>
-                  <WifiOff className="w-3 h-3 mr-1" /> Desconectado
+                  <WifiOff className="w-3 h-3 mr-1" /> Off
                 </>
               )}
             </span>

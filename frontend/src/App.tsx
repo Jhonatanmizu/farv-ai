@@ -4,8 +4,16 @@ import { AuditStudio } from './components/AuditStudio';
 import { BatchMonitor } from './components/BatchMonitor';
 import { MetricsDashboard } from './components/MetricsDashboard';
 import { QualitativeModal } from './components/QualitativeModal';
-import { AuditJob, GeneratedImage } from './types';
-import { createWebSocket, fetchAuditJobs, fetchAuditJobDetail } from './services/api';
+import { AuthModal } from './components/AuthModal';
+import { ExportModal } from './components/ExportModal';
+import { AuditJob, GeneratedImage, User } from './types';
+import {
+  createWebSocket,
+  fetchAuditJobs,
+  fetchAuditJobDetail,
+  fetchCurrentUser,
+  removeStoredToken,
+} from './services/api';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'studio' | 'monitor' | 'metrics'>('studio');
@@ -13,6 +21,14 @@ export const App: React.FC = () => {
   const [currentJob, setCurrentJob] = useState<AuditJob | null>(null);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [isWsConnected, setIsWsConnected] = useState<boolean>(false);
+
+  // Authentication state
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  // Export modal state
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [exportTargetJob, setExportTargetJob] = useState<{ id?: string; name?: string }>({});
 
   const loadJobs = async () => {
     try {
@@ -37,6 +53,9 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     loadJobs();
+    fetchCurrentUser().then((user) => {
+      if (user) setCurrentUser(user);
+    });
   }, []);
 
   // Initialize WebSocket for real-time background task updates
@@ -79,12 +98,31 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    removeStoredToken();
+    setCurrentUser(null);
+  };
+
+  const handleOpenGlobalExport = () => {
+    setExportTargetJob({});
+    setIsExportModalOpen(true);
+  };
+
+  const handleOpenJobExport = (job: AuditJob) => {
+    setExportTargetJob({ id: job.id, name: job.name });
+    setIsExportModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-stone-50">
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isWsConnected={isWsConnected}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
+        onOpenExportModal={handleOpenGlobalExport}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -96,6 +134,7 @@ export const App: React.FC = () => {
             onSelectJob={(id) => loadJobDetail(id)}
             onRefresh={() => currentJob && loadJobDetail(currentJob.id)}
             onInspectImage={(img) => setSelectedImage(img)}
+            onExportJob={handleOpenJobExport}
           />
         )}
         {activeTab === 'metrics' && <MetricsDashboard jobId={currentJob?.id || null} />}
@@ -104,14 +143,34 @@ export const App: React.FC = () => {
       {/* Codebook inspection & qualitative audit modal */}
       <QualitativeModal
         image={selectedImage}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onClose={() => setSelectedImage(null)}
         onSaved={handleImageUpdated}
       />
 
+      {/* Researcher Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          if (currentJob) {
+            loadJobDetail(currentJob.id);
+          }
+        }}
+      />
+
+      {/* Export CSV, SQLite, Images ZIP Modal */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        jobId={exportTargetJob.id}
+        jobName={exportTargetJob.name}
+      />
+
       <footer className="bg-white border-t border-stone-200 py-6 text-center text-xs text-stone-500">
-        <p>
-          FARV-IA • Framework de Auditoria de Representações Visuais em IA Generativa
-        </p>
+        <p>FARV-IA • Framework de Auditoria de Representações Visuais em IA Generativa</p>
         <p className="mt-1 text-stone-400">
           Baseado na pesquisa experimental de Daniele Souza das Virgens (PGCC/UEFS, 2026)
         </p>

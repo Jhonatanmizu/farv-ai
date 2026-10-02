@@ -77,12 +77,16 @@ class QuantitativeMetricResponse(BaseModel):
 class QualitativeAuditResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: str | None = None
+    user_id: str | None = None
+    reviewer_username: str | None = None
     prompt_adherence_score: float
     detected_environment: str
     visual_markers: str
     stereotypical_bias_detected: bool
     notes: str
     researcher_verified: bool
+    created_at: datetime | None = None
 
 
 class QualitativeAuditUpdate(BaseModel):
@@ -114,6 +118,7 @@ class GeneratedImageResponse(BaseModel):
     created_at: datetime
     quantitative_metric: QuantitativeMetricResponse | None = None
     qualitative_audit: QualitativeAuditResponse | None = None
+    reviews: list[QualitativeAuditResponse] = []
 
 
 class AuditJobResponse(BaseModel):

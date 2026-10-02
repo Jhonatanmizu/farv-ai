@@ -17,12 +17,16 @@ export interface QuantitativeMetric {
 }
 
 export interface QualitativeAudit {
+  id?: string;
+  user_id?: string | null;
+  reviewer_username?: string | null;
   prompt_adherence_score: number;
   detected_environment: string;
   visual_markers: string;
   stereotypical_bias_detected: boolean;
   notes: string;
   researcher_verified: boolean;
+  created_at?: string;
 }
 
 export interface GeneratedImage {
@@ -42,6 +46,7 @@ export interface GeneratedImage {
   created_at: string;
   quantitative_metric?: QuantitativeMetric;
   qualitative_audit?: QualitativeAudit;
+  reviews?: QualitativeAudit[];
 }
 
 export interface AuditJob {
@@ -79,4 +84,17 @@ export interface MetricSummary {
   monk_distribution: Record<number, number>;
   regional_disparities: RegionDisparityItem[];
   stereotypical_bias_rate: number;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  role: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
 }

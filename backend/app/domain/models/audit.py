@@ -2,13 +2,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    pass
+    from app.domain.models.user import User
 
 
 class AuditJob(Base):
@@ -67,9 +67,17 @@ class GeneratedImage(Base):
     quantitative_metric: Mapped["QuantitativeMetric | None"] = relationship(
         "QuantitativeMetric", back_populates="image", uselist=False, cascade="all, delete-orphan"
     )
-    qualitative_audit: Mapped["QualitativeAudit | None"] = relationship(
-        "QualitativeAudit", back_populates="image", uselist=False, cascade="all, delete-orphan"
+    qualitative_audits: Mapped[list["QualitativeAudit"]] = relationship(
+        "QualitativeAudit", back_populates="image", cascade="all, delete-orphan"
     )
+
+    @property
+    def qualitative_audit(self) -> "QualitativeAudit | None":
+        """Convenience property for backward compatibility with single-audit callers."""
+        verified = [a for a in self.qualitative_audits if a.researcher_verified]
+        if verified:
+            return verified[-1]
+        return self.qualitative_audits[0] if self.qualitative_audits else None
 
 
 class QuantitativeMetric(Base):
@@ -101,10 +109,16 @@ class QuantitativeMetric(Base):
 
 class QualitativeAudit(Base):
     __tablename__ = "qualitative_audits"
+    __table_args__ = (
+        UniqueConstraint("image_id", "user_id", name="uq_image_user_review"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     image_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("generated_images.id", ondelete="CASCADE"), unique=True, index=True
+        String(36), ForeignKey("generated_images.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     prompt_adherence_score: Mapped[float] = mapped_column(Float, default=1.0)
@@ -119,5 +133,6 @@ class QualitativeAudit(Base):
     )
 
     image: Mapped["GeneratedImage"] = relationship(
-        "GeneratedImage", back_populates="qualitative_audit"
+        "GeneratedImage", back_populates="qualitative_audits"
     )
+    user: Mapped["User | None"] = relationship("User", back_populates="audits")

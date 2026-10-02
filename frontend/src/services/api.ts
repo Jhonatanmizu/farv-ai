@@ -1,7 +1,96 @@
-import { AuditJob, MetricSummary, QualitativeAudit } from '../types';
+import { AuditJob, AuthResponse, MetricSummary, QualitativeAudit, User } from '../types';
 
 const API_BASE = '/api/v1';
+const TOKEN_KEY = 'farv_ia_auth_token';
 
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setStoredToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function removeStoredToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+// Authentication API
+export async function loginUser(username: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Falha ao autenticar.');
+  }
+  const data: AuthResponse = await res.json();
+  setStoredToken(data.access_token);
+  return data;
+}
+
+export async function registerUser(username: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Falha ao registrar pesquisador.');
+  }
+  const data: AuthResponse = await res.json();
+  setStoredToken(data.access_token);
+  return data;
+}
+
+export async function fetchCurrentUser(): Promise<User | null> {
+  const token = getStoredToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      removeStoredToken();
+      return null;
+    }
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Export URLs & Download Helpers
+export function getExportSqliteUrl(): string {
+  return `${API_BASE}/exports/sqlite`;
+}
+
+export function getExportCsvUrl(jobId?: string): string {
+  return jobId ? `${API_BASE}/exports/csv?job_id=${encodeURIComponent(jobId)}` : `${API_BASE}/exports/csv`;
+}
+
+export function getExportImagesZipUrl(jobId?: string): string {
+  return jobId
+    ? `${API_BASE}/exports/images.zip?job_id=${encodeURIComponent(jobId)}`
+    : `${API_BASE}/exports/images.zip`;
+}
+
+// Audit Job & Factor APIs
 export async function fetchFactors(): Promise<{
   factors: {
     systems: string[];
@@ -58,7 +147,7 @@ export async function createAuditJob(data: {
 }): Promise<AuditJob> {
   const res = await fetch(`${API_BASE}/audits`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to start audit job');
@@ -72,7 +161,9 @@ export async function fetchAuditJobs(): Promise<AuditJob[]> {
 }
 
 export async function fetchAuditJobDetail(jobId: string): Promise<AuditJob> {
-  const res = await fetch(`${API_BASE}/audits/${jobId}`);
+  const res = await fetch(`${API_BASE}/audits/${jobId}`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch audit job detail');
   return res.json();
 }
@@ -83,13 +174,21 @@ export async function fetchMetricsSummary(jobId: string): Promise<MetricSummary>
   return res.json();
 }
 
+export async function fetchImageReviews(imageId: string): Promise<QualitativeAudit[]> {
+  const res = await fetch(`${API_BASE}/audits/images/${imageId}/reviews`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch reviews for image');
+  return res.json();
+}
+
 export async function updateQualitativeAudit(
   imageId: string,
   update: Partial<QualitativeAudit>
 ): Promise<QualitativeAudit> {
   const res = await fetch(`${API_BASE}/audits/images/${imageId}/qualitative`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(update),
   });
   if (!res.ok) throw new Error('Failed to update qualitative audit');

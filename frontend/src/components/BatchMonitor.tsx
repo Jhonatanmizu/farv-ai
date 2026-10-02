@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AuditJob, GeneratedImage } from '../types';
 import { ImageCard } from './ImageCard';
-import { CheckCircle2, RefreshCw, Filter } from 'lucide-react';
+import { CheckCircle2, RefreshCw, Filter, Download } from 'lucide-react';
 
 interface BatchMonitorProps {
   currentJob: AuditJob | null;
@@ -9,6 +9,7 @@ interface BatchMonitorProps {
   onSelectJob: (jobId: string) => void;
   onRefresh: () => void;
   onInspectImage: (image: GeneratedImage) => void;
+  onExportJob?: (job: AuditJob) => void;
 }
 
 export const BatchMonitor: React.FC<BatchMonitorProps> = ({
@@ -17,6 +18,7 @@ export const BatchMonitor: React.FC<BatchMonitorProps> = ({
   onSelectJob,
   onRefresh,
   onInspectImage,
+  onExportJob,
 }) => {
   const [filterIdentity, setFilterIdentity] = useState<string>('all');
   const [filterOccupation, setFilterOccupation] = useState<string>('all');
@@ -73,6 +75,17 @@ export const BatchMonitor: React.FC<BatchMonitorProps> = ({
               </option>
             ))}
           </select>
+
+          {currentJob && onExportJob && (
+            <button
+              onClick={() => onExportJob(currentJob)}
+              className="flex items-center space-x-1.5 px-3 py-2 bg-stone-900 hover:bg-stone-800 text-stone-100 border border-stone-700 rounded-md text-xs font-semibold transition-colors shadow-sm"
+              title="Exportar dados e imagens deste lote"
+            >
+              <Download className="w-3.5 h-3.5 text-rose-400" />
+              <span>Exportar Lote</span>
+            </button>
+          )}
 
           <button
             onClick={onRefresh}

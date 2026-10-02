@@ -1,6 +1,6 @@
 import React from 'react';
 import { GeneratedImage } from '../types';
-import { AlertTriangle, CheckCircle, FileText } from 'lucide-react';
+import { AlertTriangle, CheckCircle, FileText, Users } from 'lucide-react';
 
 const MONK_HEX_CODES: Record<number, string> = {
   1: '#f6ede4',
@@ -23,6 +23,7 @@ interface ImageCardProps {
 export const ImageCard: React.FC<ImageCardProps> = ({ image, onInspect }) => {
   const quant = image.quantitative_metric;
   const qual = image.qualitative_audit;
+  const reviewsCount = image.reviews?.length ?? (qual?.researcher_verified ? 1 : 0);
   const monkTone = quant?.monk_tone ?? 1;
   const monkHex = MONK_HEX_CODES[monkTone] || '#a07e56';
 
@@ -42,7 +43,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onInspect }) => {
         )}
 
         {/* Floating status tag */}
-        <div className="absolute top-2 right-2 flex gap-1">
+        <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
           {qual?.stereotypical_bias_detected && (
             <span className="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" /> Estereótipo
@@ -51,6 +52,11 @@ export const ImageCard: React.FC<ImageCardProps> = ({ image, onInspect }) => {
           {qual?.researcher_verified && (
             <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow flex items-center gap-1">
               <CheckCircle className="w-3 h-3" /> Validado
+            </span>
+          )}
+          {reviewsCount > 1 && (
+            <span className="bg-stone-900/90 text-stone-200 text-[10px] font-bold px-1.5 py-0.5 rounded shadow flex items-center gap-1">
+              <Users className="w-3 h-3 text-rose-400" /> {reviewsCount} revisores
             </span>
           )}
         </div>
