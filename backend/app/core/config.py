@@ -1,7 +1,21 @@
+import os
 from pathlib import Path
+from typing import Any
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_CURRENT_FILE = Path(__file__).resolve()
+_BACKEND_DIR = _CURRENT_FILE.parent.parent.parent
+_ROOT_DIR = _BACKEND_DIR.parent
+
+_ENV_CANDIDATES = [
+    str(_ROOT_DIR / ".env"),
+    str(_BACKEND_DIR / ".env"),
+    ".env",
+]
+if os.getenv("ENV_FILE"):
+    _ENV_CANDIDATES.insert(0, os.getenv("ENV_FILE"))
 
 
 class Settings(BaseSettings):
@@ -10,13 +24,13 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # Storage paths
-    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
+    BASE_DIR: Path = _BACKEND_DIR
     DATA_DIR: Path = BASE_DIR / "data"
     IMAGES_DIR: Path | None = None
     SQLITE_DB_PATH: Path | None = None
     STATIC_FRONTEND_DIR: Path | None = None
 
-    # API Keys for generative providers
+    # API Keys for generative providers (loaded from environment or .env)
     OPENAI_API_KEY: str | None = None
     STABILITY_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
@@ -36,13 +50,20 @@ class Settings(BaseSettings):
     PUBLIC_BASE_URL: str | None = None
 
     model_config = SettingsConfigDict(
-        env_file=[
-            str(Path(__file__).resolve().parent.parent.parent / ".env"),
-            ".env",
-        ],
+        env_file=_ENV_CANDIDATES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_empty_strings(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return {
+                k: None if (isinstance(v, str) and not v.strip() and k.endswith("_KEY")) else v
+                for k, v in data.items()
+            }
+        return data
 
     @model_validator(mode="after")
     def set_default_paths(self) -> "Settings":
